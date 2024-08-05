@@ -70,8 +70,8 @@ function install_node() {
     RPC_URL=${custom_rpc:-https://api.mainnet-beta.solana.com}
 
     # 获取用户输入的线程数或使用默认值
-    read -p "请输入挖矿时要使用的线程数 (默认设置 1): " custom_threads
-    THREADS=${custom_threads:-1}
+    read -p "请输入挖矿时要使用的线程数 (默认设置 8): " custom_threads
+    THREADS=${custom_threads:-8}
 
     # 获取用户输入的优先费用或使用默认值
     read -p "请输入交易的优先费用 (默认设置 1): " custom_priority_fee
