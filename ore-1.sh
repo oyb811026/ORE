@@ -157,13 +157,8 @@ function main_menu() {
         echo "4. 查看挖矿收益"
         echo "5. 领取挖矿收益"
         echo "6. 查看节点运行情况"
-        echo "7. 单机多开钱包（需要提供私钥）"
-        echo "8. 单机多开钱包（不检查环境）"
-        echo "9. 单机多开钱包，查看奖励"
-        echo "10. 单机多开钱包，领取奖励（自动轮询）"
-        echo "11. 多开监控，自动读取配置文件"
-        echo "12. 算力测试"
-        echo "13. 杀死screen会话"
+        echo "7. 算力测试"
+        echo "8. 杀死screen会话"
         
         
         read -p "请输入选项（1-12）: " OPTION
@@ -174,14 +169,9 @@ function main_menu() {
         3) start ;;
         4) view_rewards ;;
         5) claim_rewards ;;
-        6) check_logs ;;
-        7) multiple ;;
-        8) lonely ;; 
-        9) check_multiple ;;
-        10) cliam_multiple ;; 
-        11) rerun_rpc ;; 
-        12) benchmark ;;
-        13) kill_screen_session ;;
+        6) check_logs ;; 
+        7) benchmark ;;
+        8) kill_screen_session ;;
         esac
         echo "按任意键返回主菜单..."
         read -n 1
