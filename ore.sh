@@ -142,6 +142,26 @@ function claim_rewards() {
     ore --rpc https://api.mainnet-beta.solana.com --keypair ~/.config/solana/id.json claim
 }
 
+# 杀死screen会话的函数
+function kill_screen_session() {
+    local session_name="Quili"
+    if screen -list | grep -q "$session_name"; then
+        echo "找到以下screen会话："
+        screen -list | grep "$session_name"
+        
+        read -p "请输入要杀死的会话ID（例如11687）: " session_id
+        if [[ -n "$session_id" ]]; then
+            echo "正在杀死screen会话 '$session_id'..."
+            screen -S "$session_id" -X quit || echo "杀死会话失败"
+            echo "Screen会话 '$session_id' 已被杀死."
+        else
+            echo "无效的会话ID。"
+        fi
+    else
+        echo "没有找到名为 '$session_name' 的screen会话."
+    fi
+}
+
 # 主菜单
 function main_menu() {
     while true; do
@@ -154,6 +174,7 @@ function main_menu() {
         echo "4. 查看挖矿收益"
         echo "5. 领取挖矿收益"
         echo "6. 查看节点运行情况"
+        echo "7. 杀死screen会话"
         read -p "请输入选项（1-6）: " OPTION
 
         case $OPTION in
@@ -163,6 +184,7 @@ function main_menu() {
         4) view_rewards ;;
         5) claim_rewards ;;
         6) check_logs ;;
+        7) kill_screen_session ;;
         *) echo "无效选项，请重新输入。" ;;
         esac
         echo "按任意键返回主菜单..."
