@@ -350,7 +350,7 @@ function benchmark() {
     ore benchmark --cores "$CORES"
 }
 
-复制代码function jito() {
+function jito() {
     if [ -d "ore-cli" ]; then
         echo "'ore-cli' 目录已存在，将备份并清空该目录..."
         mv ore-cli ore-cli_backup_$(date +"%Y%m%d%H%M%S")  # 备份已存在的目录
