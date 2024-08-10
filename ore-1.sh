@@ -1,182 +1,282 @@
 #!/bin/bash
 
-# 检查是否以root用户运行脚本
-if [ "$(id -u)" != "0" ]; then
-    echo "此脚本需要以root用户权限运行。"
-    echo "请尝试使用 'sudo -i' 命令切换到root用户，然后再次运行此脚本。"
-    exit 1
+# Check if running as root
+if [[ $EUID -ne 0 ]]; then
+   echo "未检测到ROOT权限，请使用命令sudo -i 或 sudo ./ore.sh 来提权运行."
+   exit 1
 fi
 
-# 安装 Node.js 和必要的工具
-function install_node() {
-    # 更新系统和安装必要的包
-    echo "更新系统软件包..."
-    brew update && brew upgrade
-    echo "安装必要的工具和依赖..."
-    brew install curl jq git openssl pkg-config screen
+echo ""
+echo "============================================="
+echo "   ORE V2 一键挖矿脚本 1.5"
+echo "   By: Doge "
+echo "   www.xiaot.eu.org "
+echo "============================================="
+echo ""
+while true; do
+    echo "请选择操作:"
+    echo "1. 安装ORE依赖"
+    echo "2. 生成钱包"
+    echo "3. 导入钱包私钥对"
+    echo "4. 转换私钥格式"
+    echo "5. 查看当前私钥"
+    echo "6. 查询本机算力"
+    echo "7. 领取挖矿奖励"
+    echo "8. 更新脚本"
+    echo "9. 开始挖矿"
+    echo "0. 后台挖矿"
+    echo "00. 后台日志"
+    echo "09. 终止挖矿"
+    echo ""
+    read -p "请输入您的选择: " choice
+    case $choice in
+        1)
+            echo "正在安装ORE依赖..."
+            # macOS 用 Homebrew 代替 apt-get
+            brew update
+            brew upgrade
 
-    # 安装 Rust 和 Cargo
-    echo "正在安装 Rust 和 Cargo..."
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-    source $HOME/.cargo/env
+            brew install base58 xxd
 
-    # 安装 Solana CLI
-    echo "正在安装 Solana CLI..."
-    sh -c "$(curl -sSfL https://release.solana.com/v1.18.4/install)"
+            curl https://sh.rustup.rs -sSf | sh -s -- -y
+            . "$HOME/.cargo/env" 
 
-    # 检查 solana-keygen 是否在 PATH 中
-    if ! command -v solana-keygen &> /dev/null; then
-        echo "将 Solana CLI 添加到 PATH"
-        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-        export PATH="$HOME/.cargo/bin:$PATH"
-    fi
+            brew install cargo
 
-    # 创建 Solana 密钥对
-    echo "正在创建 Solana 密钥对..."
-    solana-keygen new --derivation-path m/44'/501'/0'/0' --force | tee solana-keygen-output.txt
+            sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+            export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+            
+            cargo install ore-cli
+            ;;
 
-    # 显示提示信息，要求用户确认已备份
-    echo "请确保你已经备份了上面显示的助记词和私钥信息。"
-    echo "请向pubkey充值sol资产，用于挖矿gas费用。"
+        2)
+            echo "正在生成钱包..."
+            if [[ -f "$HOME/.config/solana/id.json" ]]; then
+                read -p "当前存在钱包文件，是否替换？(y/n): " replace_choice
+                if [[ $replace_choice == "y" || $replace_choice == "Y" ]]; then
+                    solana-keygen new -o "$HOME/.config/solana/id.json" --force
+                    echo "钱包文件已替换"
+                else
+                    echo "未替换钱包文件"
+                fi
+            else
+                solana-keygen new -o "$HOME/.config/solana/id.json"
+                echo "已创建新钱包文件"
+            fi
+            ;;
 
-    echo "备份完成后，请输入 'yes' 继续："
+        3)
+            read -p "请输入SOL私钥对，如：[21,12,21......: " private_key
+            echo "$private_key" > "$HOME/.config/solana/id.json"
+            echo "私钥对已写入 $HOME/.config/solana/id.json"
+            ;;
 
-    read -p "" user_confirmation
+        4)
+            read -p "请输入Base58格式的私钥: " base58_private_key
+            hex_private_key=$(echo "$base58_private_key" | base58 -d | xxd -p)
+            decimal_array=$(echo "$hex_private_key" | sed 's/../0x& /g' | xargs printf "%d,")
+            decimal_array="${decimal_array%?}"
+            final_private_key="[$decimal_array]"
+            echo "转换后的私钥对格式： $final_private_key"
+            ;;
 
-    if [[ "$user_confirmation" == "yes" ]]; then
-        echo "确认备份。继续执行脚本..."
-    else
-        echo "脚本终止。请确保备份你的信息后再运行脚本。"
-        exit 1
-    fi
+        5)
+            echo "查看当前私钥..."
+            cat "$HOME/.config/solana/id.json"
+            ;;
 
-    # 安装 Ore CLI
-    echo "正在安装 Ore CLI..."
-    cargo install ore-cli
+        6)
+            echo "查询本机算力..."
+            A=$(sysctl -n hw.ncpu)
+            echo "本机CPU最大线程数为: $A"
+            ore benchmark --threads $A
+            ;;
 
-    # 更新 .bash_profile 或 .zshrc，以确保 PATH 设置生效
-    echo 'export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"' >> ~/.bash_profile
-    echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bash_profile
+        7)
+            echo "领取挖矿奖励..."
+            read -p "请输入Gas费（默认值10000=0.0001 SOL）：" priority_fee
+            priority_fee=${priority_fee:-10000}
+            read -p "请输入RPC地址（默认：https://api.mainnet-beta.solana.com）：" rpc_url
+            rpc_url=${rpc_url:-https://api.mainnet-beta.solana.com}
+            ore claim --rpc $rpc_url --priority-fee $priority_fee
+            ;;
 
-    # 使改动生效
-    source ~/.bash_profile
+        8)
+            echo "更新脚本..."
+            curl -L https://github.com/crow4586/ore/releases/download/ore/dore.sh -o dore.sh && chmod +x dore.sh && ./dore.sh
+            ;;
 
-    # 获取用户输入的 RPC 地址或使用默认地址
-    read -p "请输入自定义的 RPC 地址，建议使用免费的Quicknode 或者alchemy SOL rpc(默认设置使用 https://api.mainnet-beta.solana.com): " custom_rpc
-    RPC_URL=${custom_rpc:-https://api.mainnet-beta.solana.com}
+        9)
+            if [ -f "dom.sh" ]; then
+                read -p "已经存在配置，是否继续执行？ 1 继续，2 重新配置：" continue_option
+                case $continue_option in
+                    1)
+                        echo "正在执行dom.sh配置..."
+                        bash dom.sh
+                        ;;
+                    2)
+                        echo "重新配置挖矿选项..."
+                        read -p "线程数（最大线程数为 $A ）：" threads
+                        threads=${threads:-$A}
+                        read -p "请输入RPC地址（默认：https://api.mainnet-beta.solana.com）：" rpc_url
+                        rpc_url=${rpc_url:-https://api.mainnet-beta.solana.com}
+                        read -p "缓冲时间（默认5秒）：" buffer_time
+                        buffer_time=${buffer_time:-5}
+                        read -p "优先Gas费（默认值10000=0.0001 SOL）：" priority_fee
+                        priority_fee=${priority_fee:-10000}
 
-    # 获取用户输入的线程数或使用默认值
-    read -p "请输入挖矿时要使用的线程数 (默认设置 8): " custom_threads
-    THREADS=${custom_threads:-8}
+                        echo "#!/bin/bash" > dom.sh
+                        echo "" >> dom.sh
+                        echo "threads=$threads" >> dom.sh
+                        echo "rpc_url=$rpc_url" >> dom.sh
+                        echo "buffer_time=$buffer_time" >> dom.sh
+                        echo "priority_fee=$priority_fee" >> dom.sh
+                        echo "" >> dom.sh
+                        echo "while true; do" >> dom.sh
+                        echo "    # 检查 ore 进程是否在运行" >> dom.sh
+                        echo "    if ! pgrep -f \"ore mine\" > /dev/null; then" >> dom.sh
+                        echo "        # ore 进程不存在,重新启动挖矿" >> dom.sh
+                        echo "        echo \"重新启动挖矿...\"" >> dom.sh
+                        echo "        ore mine --threads \$threads --rpc \$rpc_url --buffer-time \$buffer_time --priority-fee \$priority_fee" >> dom.sh
+                        echo "    fi" >> dom.sh
+                        echo "" >> dom.sh
+                        echo "    # 等待一段时间再检查" >> dom.sh
+                        echo "    sleep \$buffer_time" >> dom.sh
+                        echo "done" >> dom.sh
+                        chmod +x dom.sh
+                        bash dom.sh
+                        ;;
+                    *)
+                        echo "无效选择,请重新输入."
+                        ;;
+                esac
+            else
+                read -p "线程数（最大线程数为 $A ）：" threads
+                threads=${threads:-$A}
+                read -p "请输入RPC地址（默认：https://api.mainnet-beta.solana.com）：" rpc_url
+                rpc_url=${rpc_url:-https://api.mainnet-beta.solana.com}
+                read -p "缓冲时间（默认5秒）：" buffer_time
+                buffer_time=${buffer_time:-5}
+                read -p "优先Gas费（默认值10000=0.0001 SOL）：" priority_fee
+                priority_fee=${priority_fee:-10000}
 
-    # 获取用户输入的优先费用或使用默认值
-    read -p "请输入交易的优先费用 (默认设置 1): " custom_priority_fee
-    PRIORITY_FEE=${custom_priority_fee:-1}
+                echo "#!/bin/bash" > dom.sh
+                echo "" >> dom.sh
+                echo "threads=$threads" >> dom.sh
+                echo "rpc_url=$rpc_url" >> dom.sh
+                echo "buffer_time=$buffer_time" >> dom.sh
+                echo "priority_fee=$priority_fee" >> dom.sh
+                echo "" >> dom.sh
+                echo "while true; do" >> dom.sh
+                echo "    # 检查 ore 进程是否在运行" >> dom.sh
+                echo "    if ! pgrep -f \"ore mine\" > /dev/null; then" >> dom.sh
+                echo "        # ore 进程不存在,重新启动挖矿" >> dom.sh
+                echo "        echo \"重新启动挖矿...\"" >> dom.sh
+                echo "        ore mine --threads \$threads --rpc \$rpc_url --buffer-time \$buffer_time --priority-fee \$priority_fee" >> dom.sh
+                echo "    fi" >> dom.sh
+                echo "" >> dom.sh
+                echo "    # 等待一段时间再检查" >> dom.sh
+                echo "    sleep \$buffer_time" >> dom.sh
+                echo "done" >> dom.sh
+                chmod +x dom.sh
+                bash dom.sh
+            fi
+            ;;
 
-    # 使用 screen 和 Ore CLI 开始挖矿
-    session_name="ore"
-    echo "开始挖矿，会话名称为 $session_name ..."
+        0)
+            if [ -f "dom.sh" ]; then
+                read -p "已经存在配置,是否继续后台挖矿？ 1 继续，2 重新配置：" continue_option
+                case $continue_option in
+                    1)
+                        echo "后台挖矿中..."
+                        nohup bash dom.sh > dore.log 2>&1 &
+                        echo "后台挖矿已启动"
+                        ;;
+                    2)
+                        echo "重新配置挖矿选项..."
+                        read -p "线程数（最大线程数为 $A ）：" threads
+                        threads=${threads:-$A}
+                        read -p "请输入RPC地址（默认：https://api.mainnet-beta.solana.com）：" rpc_url
+                        rpc_url=${rpc_url:-https://api.mainnet-beta.solana.com}
+                        read -p "缓冲时间（默认5秒）：" buffer_time
+                        buffer_time=${buffer_time:-5}
+                        read -p "优先Gas费（默认值10000=0.0001 SOL）：" priority_fee
+                        priority_fee=${priority_fee:-10000}
 
-    start="while true; do ore --rpc $RPC_URL --keypair ~/.config/solana/id.json --priority-fee $PRIORITY_FEE mine --threads $THREADS; echo '进程异常退出，等待重启' >&2; sleep 1; done"
-    screen -dmS "$session_name" bash -c "$start"
+                        echo "#!/bin/bash" > dom.sh
+                        echo "" >> dom.sh
+                        echo "threads=$threads" >> dom.sh
+                        echo "rpc_url=$rpc_url" >> dom.sh
+                        echo "buffer_time=$buffer_time" >> dom.sh
+                        echo "priority_fee=$priority_fee" >> dom.sh
+                        echo "" >> dom.sh
+                        echo "while true; do" >> dom.sh
+                        echo "    # 检查 ore 进程是否在运行" >> dom.sh
+                        echo "    if ! pgrep -f \"ore mine\" > /dev/null; then" >> dom.sh
+                        echo "        # ore 进程不存在,重新启动挖矿" >> dom.sh
+                        echo "        echo \"重新启动挖矿...\"" >> dom.sh
+                        echo "        ore mine --threads \$threads --rpc \$rpc_url --buffer-time \$buffer_time --priority-fee \$priority_fee" >> dom.sh
+                        echo "    fi" >> dom.sh
+                        echo "" >> dom.sh
+                        echo "    # 等待一段时间再检查" >> dom.sh
+                        echo "    sleep \$buffer_time" >> dom.sh
+                        echo "done" >> dom.sh
+                        chmod +x dom.sh
+                        nohup bash dom.sh > dore.log 2>&1 &
+                        echo "后台挖矿已启动"
+                        ;;
+                    *)
+                        echo "无效选择,请重新输入."
+                        ;;
+                esac
+            else
+                read -p "线程数（最大线程数为 $A ）：" threads
+                threads=${threads:-$A}
+                read -p "请输入RPC地址（默认：https://api.mainnet-beta.solana.com）：" rpc_url
+                rpc_url=${rpc_url:-https://api.mainnet-beta.solana.com}
+                read -p "缓冲时间（默认5秒）：" buffer_time
+                buffer_time=${buffer_time:-5}
+                read -p "优先Gas费（默认值10000=0.0001 SOL）：" priority_fee
+                priority_fee=${priority_fee:-10000}
 
-    echo "挖矿进程已在名为 $session_name 的 screen 会话中后台启动。"
-    echo "使用 'screen -r $session_name' 命令重新连接到此会话。"
-}
+                echo "#!/bin/bash" > dom.sh
+                echo "" >> dom.sh
+                echo "threads=$threads" >> dom.sh
+                echo "rpc_url=$rpc_url" >> dom.sh
+                echo "buffer_time=$buffer_time" >> dom.sh
+                echo "priority_fee=$priority_fee" >> dom.sh
+                echo "" >> dom.sh
+                echo "while true; do" >> dom.sh
+                echo "    # 检查 ore 进程是否在运行" >> dom.sh
+                echo "    if ! pgrep -f \"ore mine\" > /dev/null; then" >> dom.sh
+                echo "        # ore 进程不存在,重新启动挖矿" >> dom.sh
+                echo "        echo \"重新启动挖矿...\"" >> dom.sh
+                echo "        ore mine --threads \$threads --rpc \$rpc_url --buffer-time \$buffer_time --priority-fee \$priority_fee" >> dom.sh
+                echo "    fi" >> dom.sh
+                echo "" >> dom.sh
+                echo "    # 等待一段时间再检查" >> dom.sh
+                echo "    sleep \$buffer_time" >> dom.sh
+                echo "done" >> dom.sh
+                chmod +x dom.sh
+                nohup bash dom.sh > dore.log 2>&1 &
+                echo "后台挖矿已启动"
+            fi
+            ;;
 
-# 恢复钱包并开始挖矿
-function export_wallet() {
-    echo "更新系统软件包..."
-    brew update && brew upgrade
-    echo "安装必要的工具和依赖..."
-    brew install curl jq git openssl pkg-config screen
+        00)
+            echo "查看后台日志..."
+            tail -f dore.log
+            ;;
 
-    echo "正在恢复Solana钱包..."
-    echo "下方请粘贴/输入你的助记词，用空格分隔，盲文不会显示的"
+        09)
+            echo "正在终止挖矿..."
+            pkill -f "ore mine"
+            pkill -f "dom.sh"
+            echo "挖矿已终止"
+            ;;
 
-    # 使用助记词恢复钱包
-    solana-keygen recover 'prompt:?key=0/0' --force
-
-    echo "钱包已恢复。"
-    echo "请确保你的钱包地址已经充足的 SOL 用于交易费用。"
-
-    # 更新 .bash_profile 或 .zshrc
-    echo 'export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"' >> ~/.bash_profile
-    echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bash_profile
-
-    source ~/.bash_profile
-
-    read -p "请输入自定义的 RPC 地址，建议使用免费的Quicknode 或者alchemy SOL rpc(默认设置使用 https://api.mainnet-beta.solana.com): " custom_rpc
-    RPC_URL=${custom_rpc:-https://api.mainnet-beta.solana.com}
-
-    read -p "请输入挖矿时要使用的线程数 (默认设置 8): " custom_threads
-    THREADS=${custom_threads:-8}
-
-    read -p "请输入交易的优先费用 (默认设置 1): " custom_priority_fee
-    PRIORITY_FEE=${custom_priority_fee:-1}
-
-    session_name="ore"
-    echo "开始挖矿，会话名称为 $session_name ..."
-
-    start="while true; do ore --rpc $RPC_URL --keypair ~/.config/solana/id.json --priority-fee $PRIORITY_FEE mine --threads $THREADS; echo '进程异常退出，等待重启' >&2; sleep 1; done"
-    screen -dmS "$session_name" bash -c "$start"
-
-    echo "挖矿进程已在名为 $session_name 的 screen 会话中后台启动。"
-    echo "使用 'screen -r $session_name' 命令重新连接到此会话。"
-}
-
-# 杀死screen会话的函数
-function kill_screen_session() {
-    local session_name="Quili"
-    if screen -list | grep -q "$session_name"; then
-        echo "找到以下screen会话："
-        screen -list | grep "$session_name"
-        
-        read -p "请输入要杀死的会话ID（例如11687）: " session_id
-        if [[ -n "$session_id" ]]; then
-            echo "正在杀死screen会话 '$session_id'..."
-            screen -S "$session_id" -X quit || echo "杀死会话失败"
-            echo "Screen会话 '$session_id' 已被杀死."
-        else
-            echo "无效的会话ID。"
-        fi
-    else
-        echo "没有找到名为 '$session_name' 的screen会话."
-    fi
-}
-
-# 主菜单
-function main_menu() {
-    while true; do
-        clear
-        echo "退出脚本，请按键盘ctrl c退出即可"
-        echo "请选择要执行的操作:"
-        echo "1. 安装新节点"
-        echo "2. 导入钱包运行"
-        echo "3. 单独启动运行"
-        echo "4. 查看挖矿收益"
-        echo "5. 领取挖矿收益"
-        echo "6. 查看节点运行情况"
-        echo "7. 算力测试"
-        echo "8. 杀死screen会话"
-        
-        
-        read -p "请输入选项（1-12）: " OPTION
-
-        case $OPTION in
-        1) install_node ;;
-        2) export_wallet ;;
-        3) start ;;
-        4) view_rewards ;;
-        5) claim_rewards ;;
-        6) check_logs ;; 
-        7) benchmark ;;
-        8) kill_screen_session ;;
-        esac
-        echo "按任意键返回主菜单..."
-        read -n 1
-    done
-}
-
-# 显示主菜单
-main_menu
+        *)
+            echo "无效选择,请重新输入."
+            ;;
+    esac
+done
