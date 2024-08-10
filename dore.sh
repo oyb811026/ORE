@@ -141,7 +141,14 @@ while true; do
                         echo "    # 检查 ore 进程是否在运行" >> dom.sh
                         echo "    if ! pgrep -f \"ore mine\" > /dev/null; then" >> dom.sh
                         echo "        # ore 进程不存在,重新启动挖矿" >> dom.sh
-                        echo "        echo \"重新启动挖矿...\"" >> dom.sh
+                        echo "        echo \"重新启动挖矿...\" >> dore.log" >> dom.sh
+                        echo "        echo \"\$(date +'%Y-%m-%d %H:%M:%S') - 启动挖矿...\" >> dore.log" >> dom.sh
+                        echo "        current_difficulty=\$(ore get difficulty)" >> dom.sh
+                        echo "        avg_difficulty=\$(ore get avg_difficulty)" >> dom.sh # 替换为实际命令
+                        echo "        earnings=\$(ore get earnings)" >> dom.sh # 替换为实际命令
+                        echo "        total_balance=\$(ore get balance)" >> dom.sh # 替换为实际命令
+                        echo "        hourly_avg=\$(ore get hourly_avg)" >> dom.sh # 替换为实际命令
+                        echo "        echo \"\$(date +'%Y-%m-%d %H:%M:%S') - 当前难度: \$current_difficulty, 平均难度: \$avg_difficulty, 当前收益: \$earnings, 总余额: \$total_balance, 每小时平均获得量: \$hourly_avg\" >> dore.log" >> dom.sh
                         echo "        ore mine --cores \$cores --rpc \$rpc_url --buffer-time \$buffer_time --priority-fee \$priority_fee" >> dom.sh
                         echo "    fi" >> dom.sh
                         echo "" >> dom.sh
@@ -176,7 +183,14 @@ while true; do
                 echo "    # 检查 ore 进程是否在运行" >> dom.sh
                 echo "    if ! pgrep -f \"ore mine\" > /dev/null; then" >> dom.sh
                 echo "        # ore 进程不存在,重新启动挖矿" >> dom.sh
-                echo "        echo \"重新启动挖矿...\"" >> dom.sh
+                echo "        echo \"重新启动挖矿...\" >> dore.log" >> dom.sh
+                echo "        echo \"\$(date +'%Y-%m-%d %H:%M:%S') - 启动挖矿...\" >> dore.log" >> dom.sh
+                echo "        current_difficulty=\$(ore get difficulty)" >> dom.sh
+                echo "        avg_difficulty=\$(ore get avg_difficulty)" >> dom.sh # 替换为实际命令
+                echo "        earnings=\$(ore get earnings)" >> dom.sh # 替换为实际命令
+                echo "        total_balance=\$(ore get balance)" >> dom.sh # 替换为实际命令
+                echo "        hourly_avg=\$(ore get hourly_avg)" >> dom.sh # 替换为实际命令
+                echo "        echo \"\$(date +'%Y-%m-%d %H:%M:%S') - 当前难度: \$current_difficulty, 平均难度: \$avg_difficulty, 当前收益: \$earnings, 总余额: \$total_balance, 每小时平均获得量: \$hourly_avg\" >> dore.log" >> dom.sh
                 echo "        ore mine --cores \$cores --rpc \$rpc_url --buffer-time \$buffer_time --priority-fee \$priority_fee" >> dom.sh
                 echo "    fi" >> dom.sh
                 echo "" >> dom.sh
@@ -220,7 +234,14 @@ while true; do
                         echo "    # 检查 ore 进程是否在运行" >> dom.sh
                         echo "    if ! pgrep -f \"ore mine\" > /dev/null; then" >> dom.sh
                         echo "        # ore 进程不存在,重新启动挖矿" >> dom.sh
-                        echo "        echo \"重新启动挖矿...\"" >> dom.sh
+                        echo "        echo \"重新启动挖矿...\" >> dore.log" >> dom.sh
+                        echo "        echo \"\$(date +'%Y-%m-%d %H:%M:%S') - 启动挖矿...\" >> dore.log" >> dom.sh
+                        echo "        current_difficulty=\$(ore get difficulty)" >> dom.sh
+                        echo "        avg_difficulty=\$(ore get avg_difficulty)" >> dom.sh # 替换为实际命令
+                        echo "        earnings=\$(ore get earnings)" >> dom.sh # 替换为实际命令
+                        echo "        total_balance=\$(ore get balance)" >> dom.sh # 替换为实际命令
+                        echo "        hourly_avg=\$(ore get hourly_avg)" >> dom.sh # 替换为实际命令
+                        echo "        echo \"\$(date +'%Y-%m-%d %H:%M:%S') - 当前难度: \$current_difficulty, 平均难度: \$avg_difficulty, 当前收益: \$earnings, 总余额: \$total_balance, 每小时平均获得量: \$hourly_avg\" >> dore.log" >> dom.sh
                         echo "        ore mine --cores \$cores --rpc \$rpc_url --buffer-time \$buffer_time --priority-fee \$priority_fee" >> dom.sh
                         echo "    fi" >> dom.sh
                         echo "" >> dom.sh
@@ -256,7 +277,14 @@ while true; do
                 echo "    # 检查 ore 进程是否在运行" >> dom.sh
                 echo "    if ! pgrep -f \"ore mine\" > /dev/null; then" >> dom.sh
                 echo "        # ore 进程不存在,重新启动挖矿" >> dom.sh
-                echo "        echo \"重新启动挖矿...\"" >> dom.sh
+                echo "        echo \"重新启动挖矿...\" >> dore.log" >> dom.sh
+                echo "        echo \"\$(date +'%Y-%m-%d %H:%M:%S') - 启动挖矿...\" >> dore.log" >> dom.sh
+                echo "        current_difficulty=\$(ore get difficulty)" >> dom.sh
+                echo "        avg_difficulty=\$(ore get avg_difficulty)" >> dom.sh # 替换为实际命令
+                echo "        earnings=\$(ore get earnings)" >> dom.sh # 替换为实际命令
+                echo "        total_balance=\$(ore get balance)" >> dom.sh # 替换为实际命令
+                echo "        hourly_avg=\$(ore get hourly_avg)" >> dom.sh # 替换为实际命令
+                echo "        echo \"\$(date +'%Y-%m-%d %H:%M:%S') - 当前难度: \$current_difficulty, 平均难度: \$avg_difficulty, 当前收益: \$earnings, 总余额: \$total_balance, 每小时平均获得量: \$hourly_avg\" >> dore.log" >> dom.sh
                 echo "        ore mine --cores \$cores --rpc \$rpc_url --buffer-time \$buffer_time --priority-fee \$priority_fee" >> dom.sh
                 echo "    fi" >> dom.sh
                 echo "" >> dom.sh
