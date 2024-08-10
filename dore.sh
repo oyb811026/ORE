@@ -1,39 +1,48 @@
-复制代码#!/bin/bash
+#!/bin/bash
+
+# Define color codes
+RED="\033[31m"
+GREEN="\033[32m"
+YELLOW="\033[33m"
+BLUE="\033[34m"
+MAGENTA="\033[35m"
+CYAN="\033[36m"
+RESET="\033[0m" # Reset to default color
 
 # Check if running as root
 if [[ $EUID -ne 0 ]]; then
-   echo "未检测到ROOT权限，请使用命令sudo -i 或 sudo ./ore.sh 来提权运行."
+   echo -e "${RED}未检测到ROOT权限，请使用命令sudo -i 或 sudo ./ore.sh 来提权运行.${RESET}"
    exit 1
 fi
 
 echo ""
-echo "============================================="
-echo "   ORE V2 一键挖矿脚本 1.5"
-echo "   By: Doge "
-echo "   www.xiaot.eu.org "
-echo "============================================="
+echo -e "${GREEN}=============================================${RESET}"
+echo -e "${GREEN}   ORE V2 一键挖矿脚本 1.5${RESET}"
+echo -e "${GREEN}   By: Doge ${RESET}"
+echo -e "${GREEN}   www.xiaot.eu.org ${RESET}"
+echo -e "${GREEN}=============================================${RESET}"
 echo ""
 
 while true; do
-    echo "请选择操作:"
-    echo "1. 安装ORE依赖"
-    echo "2. 生成钱包"
-    echo "3. 导入钱包私钥对"
-    echo "4. 转换私钥格式"
-    echo "5. 查看当前私钥"
-    echo "6. 查询本机算力"
-    echo "7. 领取挖矿奖励"
-    echo "8. 更新脚本"
-    echo "9. 开始挖矿"
-    echo "0. 后台挖矿"
-    echo "00. 后台日志"
-    echo "09. 终止挖矿"
+    echo -e "${YELLOW}请选择操作:${RESET}"
+    echo -e "${CYAN}1. 安装ORE依赖${RESET}"
+    echo -e "${CYAN}2. 生成钱包${RESET}"
+    echo -e "${CYAN}3. 导入钱包私钥对${RESET}"
+    echo -e "${CYAN}4. 转换私钥格式${RESET}"
+    echo -e "${CYAN}5. 查看当前私钥${RESET}"
+    echo -e "${CYAN}6. 查询本机算力${RESET}"
+    echo -e "${CYAN}7. 领取挖矿奖励${RESET}"
+    echo -e "${CYAN}8. 更新脚本${RESET}"
+    echo -e "${CYAN}9. 开始挖矿${RESET}"
+    echo -e "${CYAN}0. 后台挖矿${RESET}"
+    echo -e "${CYAN}00. 后台日志${RESET}"
+    echo -e "${CYAN}09. 终止挖矿${RESET}"
     echo ""
-    
+
     read -p "请输入您的选择: " choice
     case $choice in
         1)
-            echo "正在安装ORE依赖..."
+            echo -e "${GREEN}正在安装ORE依赖...${RESET}"
             apt update && echo y | apt upgrade
             apt-get install -y build-essential
             apt install -y base58 xxd
@@ -46,25 +55,25 @@ while true; do
             ;;
 
         2)
-            echo "正在生成钱包..."
+            echo -e "${GREEN}正在生成钱包...${RESET}"
             if [[ -f "/root/.config/solana/id.json" ]]; then
                 read -p "当前存在钱包文件，是否替换？(y/n): " replace_choice
                 if [[ $replace_choice == "y" || $replace_choice == "Y" ]]; then
                     solana-keygen new -o /root/.config/solana/id.json --force
-                    echo "钱包文件已替换"
+                    echo -e "${GREEN}钱包文件已替换${RESET}"
                 else
-                    echo "未替换钱包文件"
+                    echo -e "${YELLOW}未替换钱包文件${RESET}"
                 fi
             else
                 solana-keygen new -o /root/.config/solana/id.json
-                echo "已创建新钱包文件"
+                echo -e "${GREEN}已创建新钱包文件${RESET}"
             fi
             ;;
 
         3)
             read -p "请输入SOL私钥对，如：[21,12,21...]: " private_key
             echo "$private_key" > ~/.config/solana/id.json
-            echo "私钥对已写入 ~/.config/solana/id.json"
+            echo -e "${GREEN}私钥对已写入 ~/.config/solana/id.json${RESET}"
             ;;
 
         4)
@@ -73,23 +82,23 @@ while true; do
             decimal_array=$(echo "$hex_private_key" | sed 's/../0x& /g' | xargs printf "%d,")
             decimal_array="${decimal_array%?}"
             final_private_key="[$decimal_array]"
-            echo "转换后的私钥对格式： $final_private_key"
+            echo -e "${GREEN}转换后的私钥对格式： $final_private_key${RESET}"
             ;;
 
         5)
-            echo "查看当前私钥..."
+            echo -e "${YELLOW}查看当前私钥...${RESET}"
             cat /root/.config/solana/id.json
             ;;
 
         6)
-            echo "查询本机算力..."
+            echo -e "${YELLOW}查询本机算力...${RESET}"
             A=$(nproc)
-            echo "本机CPU最大线程数为: $A"
+            echo -e "${GREEN}本机CPU最大核心数为: $A${RESET}"
             ore benchmark --cores $A
             ;;
 
         7)
-            echo "领取挖矿奖励..."
+            echo -e "${YELLOW}领取挖矿奖励...${RESET}"
             read -p "请输入Gas费（默认值10000=0.0001 SOL）：" priority_fee
             priority_fee=${priority_fee:-10000}
             read -p "请输入RPC地址（默认：https://api.mainnet-beta.solana.com）：" rpc_url
@@ -98,7 +107,7 @@ while true; do
             ;;
 
         8)
-            echo "更新脚本..."
+            echo -e "${GREEN}更新脚本...${RESET}"
             curl -L https://github.com/crow4586/ore/releases/download/ore/dore.sh -o dore.sh && chmod +x dore.sh && ./dore.sh
             ;;
 
@@ -107,11 +116,11 @@ while true; do
                 read -p "已经存在配置，是否继续执行？1 继续，2 重新配置：" continue_option
                 case $continue_option in
                     1)
-                        echo "正在执行dom.sh配置..."
+                        echo -e "${GREEN}正在执行dom.sh配置...${RESET}"
                         bash dom.sh
                         ;;
                     2)
-                        echo "重新配置挖矿选项..."
+                        echo -e "${YELLOW}重新配置挖矿选项...${RESET}"
                         read -p "核心数（最大核心数为 $A）：" cores
                         cores=${cores:-$A}
                         read -p "请输入RPC地址（默认：https://api.mainnet-beta.solana.com）：" rpc_url
@@ -143,7 +152,7 @@ while true; do
                         bash dom.sh
                         ;;
                     *)
-                        echo "无效选择,请重新输入."
+                        echo -e "${RED}无效选择,请重新输入.${RESET}"
                         ;;
                 esac
             else
@@ -184,12 +193,12 @@ while true; do
                 read -p "已经存在配置,是否继续后台挖矿？1 继续，2 重新配置：" continue_option
                 case $continue_option in
                     1)
-                        echo "后台挖矿中..."
+                        echo -e "${GREEN}后台挖矿中...${RESET}"
                         nohup bash dom.sh > dore.log 2>&1 &
-                        echo "后台挖矿已启动"
+                        echo -e "${GREEN}后台挖矿已启动${RESET}"
                         ;;
                     2)
-                        echo "重新配置挖矿选项..."
+                        echo -e "${YELLOW}重新配置挖矿选项...${RESET}"
                         read -p "核心数（最大核心数为 $A）：" cores
                         cores=${cores:-$A}
                         read -p "请输入RPC地址（默认：https://api.mainnet-beta.solana.com）：" rpc_url
@@ -219,10 +228,10 @@ while true; do
                         echo "done" >> dom.sh
                         chmod +x dom.sh
                         nohup bash dom.sh > dore.log 2>&1 &
-                        echo "后台挖矿已启动"
+                        echo -e "${GREEN}后台挖矿已启动${RESET}"
                         ;;
                     *)
-                        echo "无效选择,请重新输入."
+                        echo -e "${RED}无效选择,请重新输入.${RESET}"
                         ;;
                 esac
             else
@@ -255,23 +264,23 @@ while true; do
                 echo "done" >> dom.sh
                 chmod +x dom.sh
                 nohup bash dom.sh > dore.log 2>&1 &
-                echo "后台挖矿已启动"
+                echo -e "${GREEN}后台挖矿已启动${RESET}"
             fi
             ;;
 
         00)
-            echo "后台日志..."
+            echo -e "${YELLOW}后台日志...${RESET}"
             tail -f dore.log
             ;;
 
         09)
-            echo "正在终止挖矿..."
+            echo -e "${RED}正在终止挖矿...${RESET}"
             pkill -f "dom.sh"
             pkill -f "ore mine"
             ;;
 
         *)
-            echo "无效选择，请重新输入."
+            echo -e "${RED}无效选择，请重新输入.${RESET}"
             ;;
     esac
 done
