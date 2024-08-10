@@ -39,7 +39,7 @@ check_cpu_usage() {
         fi
 
         # 如果CPU低于50%超过300秒（即60次5秒），则终止挖矿并重新启动
-        if [[ $low_cpu_count -ge 60 ]]; then
+        if [[ $low_cpu_count -ge 5 ]]; then
             echo -e "${YELLOW}CPU使用率低于50%超过300秒，正在终止挖矿并重新启动...${RESET}"
             pkill -f "dom.sh"
             pkill -f "ore mine"
@@ -48,7 +48,7 @@ check_cpu_usage() {
             low_cpu_count=0
         fi
 
-        sleep 5 # 每隔5秒检查一次
+        sleep 60 # 每隔5秒检查一次
     done
 }
 
