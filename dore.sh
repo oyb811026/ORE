@@ -34,9 +34,9 @@ while true; do
     echo -e "${CYAN}7. 领取挖矿奖励${RESET}"
     echo -e "${CYAN}8. 更新脚本${RESET}"
     echo -e "${CYAN}9. 开始挖矿${RESET}"
-    echo -e "${CYAN}0. 后台挖矿${RESET}"
-    echo -e "${CYAN}00. 后台日志${RESET}"
-    echo -e "${CYAN}09. 终止挖矿${RESET}"
+    echo -e "${CYAN}10. 后台挖矿${RESET}"
+    echo -e "${CYAN}11. 后台日志${RESET}"
+    echo -e "${CYAN}12. 终止挖矿${RESET}"
     echo ""
 
     read -p "请输入您的选择: " choice
@@ -188,7 +188,7 @@ while true; do
             fi
             ;;
 
-        0)
+        10)
             if [ -f "dom.sh" ]; then
                 read -p "已经存在配置,是否继续后台挖矿？1 继续，2 重新配置：" continue_option
                 case $continue_option in
@@ -268,12 +268,12 @@ while true; do
             fi
             ;;
 
-        00)
+        11)
             echo -e "${YELLOW}后台日志...${RESET}"
             tail -f dore.log
             ;;
 
-        09)
+        12)
             echo -e "${RED}正在终止挖矿...${RESET}"
             pkill -f "dom.sh"
             pkill -f "ore mine"
