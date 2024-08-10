@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# Define color codes
+# 定义颜色代码
 RED="\033[31m"
 GREEN="\033[32m"
 YELLOW="\033[33m"
 BLUE="\033[34m"
 MAGENTA="\033[35m"
 CYAN="\033[36m"
-RESET="\033[0m" # Reset to default color
+RESET="\033[0m" # 重置为默认颜色
 
-# Check if running as root
+# 检查是否以root身份运行
 if [[ $EUID -ne 0 ]]; then
    echo -e "${RED}未检测到ROOT权限，请使用命令sudo -i 或 sudo ./ore.sh 来提权运行.${RESET}"
    exit 1
@@ -22,6 +22,38 @@ echo -e "${GREEN}   By: Doge ${RESET}"
 echo -e "${GREEN}   www.xiaot.eu.org ${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 echo ""
+
+# 检查CPU使用情况的函数
+check_cpu_usage() {
+    # 初始化低CPU计数
+    local low_cpu_count=0
+    while true; do
+        # 获取当前CPU使用率
+        cpu_usage=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}')
+        
+        # 检查CPU使用率是否低于50%
+        if (( $(echo "$cpu_usage < 50" | bc -l) )); then
+            low_cpu_count=$((low_cpu_count + 1))
+        else
+            low_cpu_count=0
+        fi
+
+        # 如果CPU低于50%超过300秒（即60次5秒），则终止挖矿并重新启动
+        if [[ $low_cpu_count -ge 60 ]]; then
+            echo -e "${YELLOW}CPU使用率低于50%超过300秒，正在终止挖矿并重新启动...${RESET}"
+            pkill -f "dom.sh"
+            pkill -f "ore mine"
+            nohup bash dom.sh > dore.log 2>&1 &
+            echo -e "${GREEN}后台挖矿已重新启动${RESET}"
+            low_cpu_count=0
+        fi
+
+        sleep 5 # 每隔5秒检查一次
+    done
+}
+
+# 启动监测CPU使用率的后台进程
+check_cpu_usage &
 
 while true; do
     echo -e "${YELLOW}请选择操作:${RESET}"
@@ -184,7 +216,8 @@ while true; do
                 echo "    sleep \$buffer_time" >> dom.sh
                 echo "done" >> dom.sh
                 chmod +x dom.sh
-                bash dom.sh
+                nohup bash dom.sh > dore.log 2>&1 &
+                echo -e "${GREEN}后台挖矿已启动${RESET}"
             fi
             ;;
 
