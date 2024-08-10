@@ -23,38 +23,6 @@ echo -e "${GREEN}   www.xiaot.eu.org ${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 echo ""
 
-# 检查CPU使用情况的函数
-check_cpu_usage() {
-    # 初始化低CPU计数
-    local low_cpu_count=0
-    while true; do
-        # 获取当前CPU使用率
-        cpu_usage=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}')
-        
-        # 检查CPU使用率是否低于50%
-        if (( $(echo "$cpu_usage < 50" | bc -l) )); then
-            low_cpu_count=$((low_cpu_count + 1))
-        else
-            low_cpu_count=0
-        fi
-
-        # 如果CPU低于50%超过300秒（即60次5秒），则终止挖矿并重新启动
-        if [[ $low_cpu_count -ge 5 ]]; then
-            echo -e "${YELLOW}CPU使用率低于50%超过300秒，正在终止挖矿并重新启动...${RESET}"
-            pkill -f "dom.sh"
-            pkill -f "ore mine"
-            nohup bash dom.sh > dore.log 2>&1 &
-            echo -e "${GREEN}后台挖矿已重新启动${RESET}"
-            low_cpu_count=0
-        fi
-
-        sleep 60 # 每隔5秒检查一次
-    done
-}
-
-# 启动监测CPU使用率的后台进程
-check_cpu_usage &
-
 while true; do
     echo -e "${YELLOW}请选择操作:${RESET}"
     echo -e "${CYAN}1. 安装ORE依赖${RESET}"
