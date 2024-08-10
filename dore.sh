@@ -299,11 +299,7 @@ while true; do
 
         11)
             echo -e "${YELLOW}后台日志...${RESET}"
-            while true; do
-                tail -n 20 dore.log # 显示最后20行
-                echo -e "${YELLOW}按 Ctrl+C 退出日志，回到功能选择界面...${RESET}"
-                sleep 5 # 等待5秒钟
-            done
+            tail -f dore.log
             ;;
 
         12)
