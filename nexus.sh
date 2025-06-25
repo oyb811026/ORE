@@ -2,7 +2,7 @@
 
 # ===== 配置区域 =====
 REQUIRED_VERSION="0.8.10"   # 最低要求的版本
-MAX_RESTART_DELAY=7200      # 最大重启延迟（秒）
+MAX_RESTART_DELAY=300      # 最大重启延迟（秒）
 MIN_RESTART_DELAY=300       # 最小重启延迟（秒）
 # ===================
 
