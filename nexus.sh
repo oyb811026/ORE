@@ -18,11 +18,11 @@ print_banner() {
 ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝
 \033[0m
 
-    === Nexus 自动化工具 (macOS 优化版) ===
+    === Nexus 多节点管理工具 (macOS 版) ===
 \033[33m
 ** ====================================== **
-*         此脚本仅供免费使用              *
-*         禁止出售或用于盈利              *
+*         支持同时运行多个节点ID          *
+*         每个ID使用独立screen会话        *
 ** ====================================== **
 
 * 作者: @YOYOMYOYOA
@@ -44,6 +44,12 @@ install_dependencies() {
     # 检查是否安装了 screen
     if ! command -v screen &> /dev/null; then
         echo "正在安装 screen..."
+        if ! command -v brew &> /dev/null; then
+            echo "正在安装 Homebrew..."
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zshrc
+            source ~/.zshrc
+        fi
         brew install screen
         echo "✅ screen 安装完成！"
     fi
@@ -81,10 +87,11 @@ validate_node_id() {
         return 1
     fi
     
-    # 验证长度 (假设有效ID在6-7位)
-    if [[ ${#id} -lt 6 || ${#id} -gt 7 ]]; then
+    # 验证长度
+    if [[ ${#id} -lt 6 || ${#id} -gt 8 ]]; then
         echo "⚠️ 警告：节点ID长度异常 (${#id}位)，请确认是否正确"
-        read -p "是否继续？(y/n): " choice
+        echo "是否继续？(y/n): "
+        read choice
         if [[ $choice != "y" && $choice != "Y" ]]; then
             return 1
         fi
@@ -99,12 +106,15 @@ system_resources() {
     echo "CPU 使用率: $(top -l 1 | grep -E "^CPU" | awk '{print $3 + $5}')%"
     echo "内存使用: $(top -l 1 -s 0 | grep PhysMem | awk '{print $2 " used, " $6 " free"}')"
     echo "磁盘空间: $(df -h / | tail -1 | awk '{print $4 " free of " $2}')"
+    
+    # 检查节点进程
+    local node_count=$(pgrep -f "nexus-network start --node-id" | wc -l | tr -d ' ')
+    echo "运行中的节点: ${node_count}个"
 }
 
 # 节点监控循环
 node_monitor() {
     local node_id="$1"
-    local session_name="nexus_${node_id}"
     local restart_delay=$MIN_RESTART_DELAY
     
     while true; do
@@ -143,6 +153,78 @@ node_monitor() {
     done
 }
 
+# 显示节点状态
+show_node_status() {
+    local nodes=(${(@s: :)1})
+    
+    echo "\n\033[36m=== 节点状态概览 ===\033[0m"
+    echo "节点ID     状态     会话名称"
+    echo "--------------------------------"
+    
+    for node_id in "${nodes[@]}"; do
+        local session_name="nexus_${node_id}"
+        local status="\033[31m停止\033[0m"
+        
+        # 检查会话是否存在
+        if screen -list | grep -q "$session_name"; then
+            status="\033[32m运行中\033[0m"
+        fi
+        
+        echo "${node_id}   ${status}   ${session_name}"
+    done
+    
+    echo "--------------------------------"
+    echo "使用 'screen -r <会话名称>' 连接节点"
+}
+
+# 启动所有节点
+start_all_nodes() {
+    local nodes=(${(@s: :)1})
+    
+    for node_id in "${nodes[@]}"; do
+        local session_name="nexus_${node_id}"
+        
+        # 如果会话已存在，跳过
+        if screen -list | grep -q "$session_name"; then
+            echo "节点 ${node_id} 已在运行 (会话: ${session_name})"
+            continue
+        fi
+        
+        # 创建新会话
+        screen -dmS "$session_name" zsh -c "
+            echo '=== Nexus 节点 ${node_id} 启动 ==='
+            echo '开始时间: $(date)'
+            
+            # 设置退出时清理
+            trap 'echo \"\n\033[31m节点 ${node_id} 终止，清理中...\033[0m\"; pkill -f \"nexus-network start --node-id ${node_id}\"; exit 0' EXIT
+            
+            $(declare -f node_monitor)
+            node_monitor \"$node_id\"
+        "
+        
+        echo "✅ 节点 ${node_id} 已启动 (会话: ${session_name})"
+    done
+}
+
+# 停止所有节点
+stop_all_nodes() {
+    local nodes=(${(@s: :)1})
+    
+    for node_id in "${nodes[@]}"; do
+        local session_name="nexus_${node_id}"
+        
+        if screen -list | grep -q "$session_name"; then
+            screen -S "$session_name" -X quit 2>/dev/null
+            echo "✅ 已停止节点 ${node_id} (会话: ${session_name})"
+        else
+            echo "⚠️ 节点 ${node_id} 未运行"
+        fi
+        
+        # 确保进程被终止
+        pkill -f "nexus-network start --node-id ${node_id}" 2>/dev/null || true
+    done
+}
+
 # 主函数
 main() {
     print_banner
@@ -153,88 +235,91 @@ main() {
     # 显示系统资源
     system_resources
     
-    # 获取节点ID
+    # 获取节点ID列表
     echo ""
-    echo "请输入您的节点ID（纯数字，如：7366937）:"
+    echo "请输入您的节点ID（多个ID用空格分隔，如：6723995 6514134 7354621）:"
     while true; do
-        read -p "节点ID: " NODE_ID
-        NODE_ID=$(echo "$NODE_ID" | tr -d '[:space:]')
+        echo -n "节点ID列表: "
+        read NODE_IDS
+        NODE_IDS=$(echo "$NODE_IDS" | tr -d '[:space:]' | sed 's/,$//')
         
-        if validate_node_id "$NODE_ID"; then
+        # 验证每个ID
+        local valid=1
+        for node_id in ${(s: :)NODE_IDS}; do
+            if ! validate_node_id "$node_id"; then
+                valid=0
+                break
+            fi
+        done
+        
+        if [[ $valid -eq 1 && -n "$NODE_IDS" ]]; then
             break
         else
-            echo "请重新输入有效的节点ID"
+            echo "请重新输入有效的节点ID列表"
         fi
     done
     
-    echo "✅ 节点ID验证通过: $NODE_ID"
+    # 转换为数组
+    local nodes=(${(@s: :)NODE_IDS})
     
-    # 会话名称
-    SESSION_NAME="nexus_${NODE_ID}"
+    echo "\n✅ 节点ID验证通过:"
+    for node_id in "${nodes[@]}"; do
+        echo " - ${node_id}"
+    done
     
-    # 检查现有会话
-    if screen -list | grep -q "$SESSION_NAME"; then
-        echo "\n发现已存在的会话: $SESSION_NAME"
-        echo "1. 连接到现有会话"
-        echo "2. 重启会话"
-        echo "3. 查看会话状态"
-        read -p "请选择操作 [1-3]: " choice
+    # 显示管理菜单
+    while true; do
+        echo "\n\033[34m=== Nexus 多节点管理 ===\033[0m"
+        echo "1. 启动所有节点"
+        echo "2. 停止所有节点"
+        echo "3. 查看节点状态"
+        echo "4. 连接到特定节点会话"
+        echo "5. 添加新节点"
+        echo "6. 退出"
+        echo -n "请选择操作 [1-6]: "
+        read choice
         
         case $choice in
             1)
-                echo "连接到现有会话..."
-                screen -r "$SESSION_NAME"
-                exit 0
+                echo "\n启动所有节点..."
+                start_all_nodes "$NODE_IDS"
                 ;;
             2)
-                echo "重启会话..."
-                screen -S "$SESSION_NAME" -X quit 2>/dev/null || true
-                sleep 2
+                echo "\n停止所有节点..."
+                stop_all_nodes "$NODE_IDS"
                 ;;
             3)
-                screen -S "$SESSION_NAME" -X hardcopy /tmp/screen_dump
-                echo "\n=== 会话最后输出 ==="
-                tail -n 20 /tmp/screen_dump
-                rm /tmp/screen_dump
-                echo "===================="
+                show_node_status "$NODE_IDS"
+                ;;
+            4)
+                echo "\n可连接的会话:"
+                screen -list | grep "nexus_"
+                echo -n "输入要连接的会话名称: "
+                read session_name
+                if [[ -n "$session_name" ]]; then
+                    screen -r "$session_name"
+                else
+                    echo "无效的会话名称"
+                fi
+                ;;
+            5)
+                echo -n "输入要添加的新节点ID: "
+                read new_id
+                if validate_node_id "$new_id"; then
+                    NODE_IDS="${NODE_IDS} ${new_id}"
+                    nodes+=("$new_id")
+                    echo "✅ 节点 ${new_id} 已添加"
+                fi
+                ;;
+            6)
+                echo "退出管理程序"
                 exit 0
                 ;;
             *)
-                echo "终止现有会话并创建新会话..."
-                screen -S "$SESSION_NAME" -X quit 2>/dev/null || true
+                echo "无效选择"
                 ;;
         esac
-    fi
-    
-    # 创建screen会话
-    echo "\n启动节点: $NODE_ID"
-    echo "Screen会话名称: $SESSION_NAME"
-    
-    # 在screen会话中运行监控
-    screen -dmS "$SESSION_NAME" zsh -c "
-        echo '=== Nexus 节点监控 ==='
-        echo '节点ID: $NODE_ID'
-        echo '会话名称: $SESSION_NAME'
-        echo '主机名: $(hostname)'
-        echo '开始时间: $(date)'
-        echo ''
-        
-        # 设置退出时清理
-        trap 'echo \"\n\033[31m会话终止，清理中...\033[0m\"; pkill -f \"nexus-network start --node-id $NODE_ID\"; exit 0' EXIT
-        
-        $(declare -f node_monitor)
-        node_monitor \"$NODE_ID\"
-    "
-    
-    # 用户指南
-    echo "\n\033[32m✅ 节点已在Screen会话中启动！\033[0m"
-    echo "\n\033[34m📋 常用命令：\033[0m"
-    echo "• 查看会话列表:    screen -list"
-    echo "• 连接到会话:      screen -r $SESSION_NAME"
-    echo "• 分离会话:        按 Ctrl+A 然后按 D"
-    echo "• 停止节点:        screen -S $SESSION_NAME -X quit"
-    echo "• 查看节点状态:    $0 --status"
-    echo "\n\033[33m🌐 现在您可以安全地关闭终端，节点会继续运行！\033[0m"
+    done
 }
 
 # 启动主函数
