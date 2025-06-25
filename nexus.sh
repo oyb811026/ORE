@@ -71,7 +71,7 @@ install_dependencies() {
     fi
 }
 
-# 验证节点ID
+# 验证节点ID - 修复了多节点输入问题
 validate_node_id() {
     local id="$1"
     
@@ -89,8 +89,8 @@ validate_node_id() {
     
     # 验证长度
     if [[ ${#id} -lt 6 || ${#id} -gt 8 ]]; then
-        echo "⚠️ 警告：节点ID长度异常 (${#id}位)，请确认是否正确"
-        echo "是否继续？(y/n): "
+        echo "⚠️ 警告：节点ID '${id}' 长度异常 (${#id}位)，请确认是否正确"
+        echo -n "是否继续？(y/n): "
         read choice
         if [[ $choice != "y" && $choice != "Y" ]]; then
             return 1
@@ -225,7 +225,7 @@ stop_all_nodes() {
     done
 }
 
-# 主函数
+# 主函数 - 修复了多节点输入处理
 main() {
     print_banner
     
@@ -236,23 +236,43 @@ main() {
     system_resources
     
     # 获取节点ID列表
-    echo ""
-    echo "请输入您的节点ID（多个ID用空格分隔，如：6723995 6514134 7354621）:"
     while true; do
+        echo ""
+        echo "请输入您的节点ID（多个ID用空格分隔，如：6723995 6514134 7354621）:"
         echo -n "节点ID列表: "
         read NODE_IDS
-        NODE_IDS=$(echo "$NODE_IDS" | tr -d '[:space:]' | sed 's/,$//')
+        
+        # 清理输入：移除前后空格，将多个空格压缩为单个空格
+        NODE_IDS=$(echo "$NODE_IDS" | tr -s ' ' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
         
         # 验证每个ID
         local valid=1
+        local nodes=()
+        
+        if [[ -z "$NODE_IDS" ]]; then
+            echo "❌ 错误：节点ID列表不能为空"
+            continue
+        fi
+        
+        # 分割为单独的ID
         for node_id in ${(s: :)NODE_IDS}; do
+            # 移除每个ID周围的空格
+            node_id=$(echo "$node_id" | tr -d '[:space:]')
+            
+            if [[ -z "$node_id" ]]; then
+                continue
+            fi
+            
             if ! validate_node_id "$node_id"; then
                 valid=0
                 break
             fi
+            
+            nodes+=("$node_id")
         done
         
-        if [[ $valid -eq 1 && -n "$NODE_IDS" ]]; then
+        if [[ $valid -eq 1 && ${#nodes[@]} -gt 0 ]]; then
+            NODE_IDS="${nodes[@]}"
             break
         else
             echo "请重新输入有效的节点ID列表"
@@ -305,9 +325,10 @@ main() {
             5)
                 echo -n "输入要添加的新节点ID: "
                 read new_id
+                new_id=$(echo "$new_id" | tr -d '[:space:]')
                 if validate_node_id "$new_id"; then
-                    NODE_IDS="${NODE_IDS} ${new_id}"
                     nodes+=("$new_id")
+                    NODE_IDS="${nodes[@]}"
                     echo "✅ 节点 ${new_id} 已添加"
                 fi
                 ;;
